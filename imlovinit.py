@@ -13,7 +13,6 @@ RECEIPT_DIR = "receipts"
 if not os.path.exists(RECEIPT_DIR):
     os.makedirs(RECEIPT_DIR)
 
-
 class ThupriCafe(QWidget):
     def __init__(self):
         super().__init__()
@@ -37,7 +36,6 @@ class ThupriCafe(QWidget):
 
         create_btn = QPushButton("Create New Receipt")
         open_btn = QPushButton("Open Existing Receipt")
-
         create_btn.clicked.connect(self.create_receipt)
         open_btn.clicked.connect(self.open_receipt)
 
@@ -50,16 +48,14 @@ class ThupriCafe(QWidget):
         self.entry_window.show()
 
     def open_receipt(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open Receipt", RECEIPT_DIR, "RTF Files (*.rtf)")
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open Receipt", RECEIPT_DIR, "Text Files (*.txt)")
         if file_path:
-            # Use platform-independent open
-            if sys.platform == "darwin":  # macOS
+            if sys.platform == "darwin":
                 os.system(f"open \"{file_path}\"")
-            elif sys.platform == "win32":  # Windows
+            elif sys.platform == "win32":
                 os.startfile(file_path)
-            else:  # Linux and others
+            else:
                 os.system(f"xdg-open \"{file_path}\"")
-
 
 class ReceiptEntryWindow(QWidget):
     def __init__(self):
@@ -72,23 +68,19 @@ class ReceiptEntryWindow(QWidget):
 
     def init_ui(self):
         self.layout = QVBoxLayout()
-
         self.table = QTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(["Item Name", "Quantity", "Diabetic", "Price ($)"])
         self.layout.addWidget(self.table)
 
         btn_layout = QHBoxLayout()
-
         self.add_btn = QPushButton("Create New Entry")
         self.finish_btn = QPushButton("Finish")
-
         self.add_btn.clicked.connect(self.add_entry)
         self.finish_btn.clicked.connect(self.finish_receipt)
-
         btn_layout.addWidget(self.add_btn)
         btn_layout.addWidget(self.finish_btn)
-
         self.layout.addLayout(btn_layout)
+
         self.setLayout(self.layout)
 
     def add_entry(self):
@@ -138,49 +130,39 @@ class ReceiptEntryWindow(QWidget):
 
         total = sum(qty * price for _, qty, _, price in self.entries)
         final_price = total - discount if discount else total
-
         timestamp = datetime.now(pytz.timezone("America/New_York")).strftime("%B %d, %Y - %I:%M %p %Z")
-        filename = f"{RECEIPT_DIR}/receipt_{datetime.now().strftime('%Y%m%d_%H%M%S')}.rtf"
+        filename = f"{RECEIPT_DIR}/receipt_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
 
-        self.generate_rtf(filename, payment_method, diabetic_customer, timestamp, total, discount, final_price)
+        self.generate_txt(filename, payment_method, diabetic_customer, timestamp, total, discount, final_price)
         QMessageBox.information(self, "Saved", f"Receipt saved to:\n{filename}")
 
-        # Open file cross-platform
-        if sys.platform == "darwin":  # macOS
+        if sys.platform == "darwin":
             os.system(f"open \"{filename}\"")
-        elif sys.platform == "win32":  # Windows
+        elif sys.platform == "win32":
             os.startfile(filename)
         else:
             os.system(f"xdg-open \"{filename}\"")
 
         self.close()
 
-    def generate_rtf(self, path, payment_method, diabetic_customer, timestamp, total, discount, final_price):
+    def generate_txt(self, path, payment_method, diabetic_customer, timestamp, total, discount, final_price):
         with open(path, "w") as file:
-            # Add color table for green (cf2)
-            file.write(r"{\rtf1\ansi{\colortbl ;\red0\green128\blue0;}\n")
-            file.write(r"\b\cf2 THUPRI Cafe\b0\cf0\line")
-            file.write(r"123 Cafe Street, MacTown\line")
-            file.write(r"------------------------------------------\line")
-            if payment_method == "Not Paid Yet":
-                file.write(r"\b NOT PAID YET \b0\line")
-            else:
-                file.write(f"PAID WITH: {payment_method}\\line")
-            file.write(f"{timestamp}\\line")
-            file.write(f"Diabetic Customer: {'Yes, so alternate sweeteners were added instead of sugar' if diabetic_customer == 'Yes' else 'No, real sugar was added'}\\line")
-            file.write("---------------------------------------------------\\line")
-            file.write(r"#\tab Name\tab Qty\tab Price\line")
-
+            file.write("=== THUPRI Cafe ===\n")
+            file.write("123 Cafe Street, MacTown\n")
+            file.write("------------------------------------------\n")
+            file.write(f"Payment: {payment_method if payment_method != 'Not Paid Yet' else 'NOT PAID YET'}\n")
+            file.write(f"Date/Time: {timestamp}\n")
+            file.write(f"Diabetic Customer: {'Yes, alternate sweeteners used' if diabetic_customer == 'Yes' else 'No, sugar used'}\n")
+            file.write("------------------------------------------\n")
+            file.write(f"{'#':<3} {'Item Name':<20} {'Qty':<5} {'Price($)':<10}\n")
             for i, (name, qty, diabetic, price) in enumerate(self.entries, start=1):
-                file.write(f"{i}.\tab {name}\tab {qty}\tab ${price:.2f}\\line")
-
-            file.write("---------------------------------------------------\\line")
-            file.write(f"Total: ${total:.2f}\\line")
-            file.write(f"Discounts, if any: ${discount:.2f}\\line")
-            file.write(r"\b Total Price: $" + f"{final_price:.2f}" + r"\b0\line")
-            file.write("---------------------------------------------------\\line")
-            file.write("Thanks for coming, please come again!\\line")
-            file.write("}")
+                file.write(f"{i:<3} {name:<20} {qty:<5} ${price:<10.2f}\n")
+            file.write("------------------------------------------\n")
+            file.write(f"Total: ${total:.2f}\n")
+            file.write(f"Discount: ${discount:.2f}\n")
+            file.write(f"Final Price: ${final_price:.2f}\n")
+            file.write("------------------------------------------\n")
+            file.write("Thanks for coming, please come again!\n")
 
 class EntryDialog(QDialog):
     def __init__(self, parent=None):
@@ -193,7 +175,6 @@ class EntryDialog(QDialog):
         self.qty_input = QSpinBox()
         self.diabetic_input = QComboBox()
         self.price_input = QLineEdit()
-
         self.qty_input.setMinimum(1)
         self.diabetic_input.addItems(["Yes", "No"])
 
@@ -211,10 +192,8 @@ class EntryDialog(QDialog):
         cancel_button = QPushButton("Cancel")
         button_layout.addWidget(ok_button)
         button_layout.addWidget(cancel_button)
-
         ok_button.clicked.connect(self.accept_data)
         cancel_button.clicked.connect(self.reject)
-
         self.layout.addLayout(button_layout)
         self.setLayout(self.layout)
 
@@ -232,7 +211,6 @@ class EntryDialog(QDialog):
             self.accept()
         except ValueError as e:
             QMessageBox.warning(self, "Invalid Input", str(e))
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
